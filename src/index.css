@@ -1,0 +1,377 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Modern Cinema Theme - Purple & Orange Gradient */
+    --background: 0 0% 98%;
+    --foreground: 0 0% 10%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 10%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 10%;
+
+    /* Purple to Orange Gradient - Primary Colors */
+    --primary: 270 65% 60%;  /* Purple #9D4EDD */
+    --primary-foreground: 0 0% 100%;
+    --primary-dark: 270 65% 45%;
+
+    --secondary: 30 100% 50%;  /* Orange #F8A100 */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 270 15% 95%;
+    --muted-foreground: 0 0% 40%;
+
+    /* Blue-Violet for buttons */
+    --accent: 230 100% 60%;  /* Blue #0066FF */
+    --accent-foreground: 0 0% 100%;
+    --accent-violet: 270 70% 65%;  /* Violet #B03FE3 */
+
+    --destructive: 0 75% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 270 10% 90%;
+    --input: 270 10% 95%;
+    --ring: 270 65% 60%;
+
+    --radius: 1rem;
+
+    /* Genre colors for chips */
+    --genre-action: 230 100% 60%;  /* Blue */
+    --genre-horror: 0 75% 50%;  /* Red */
+    --genre-comedy: 140 70% 45%;  /* Green */
+    --genre-drama: 270 65% 60%;  /* Purple */
+    --genre-scifi: 190 80% 50%;  /* Cyan */
+    --genre-romance: 330 80% 60%;  /* Pink */
+    
+    /* Seat colors */
+    --seat-available: 210 40% 55%;
+    --seat-reserved: 30 95% 50%;
+    --seat-sold: 0 60% 50%;
+    --seat-vip: 45 100% 55%;  /* Golden */
+    --seat-selected: 270 65% 60%;  /* Purple */
+
+    /* Gradients */
+    --gradient-cinema: linear-gradient(135deg, hsl(270 65% 60%), hsl(30 100% 50%));
+    --gradient-button: linear-gradient(135deg, hsl(230 100% 60%), hsl(270 70% 65%));
+    --gradient-card: linear-gradient(180deg, transparent, rgba(0,0,0,0.7));
+    --glow-purple: 0 0 30px hsl(270 65% 60% / 0.4);
+    --glow-orange: 0 0 30px hsl(30 100% 50% / 0.4);
+    --glow-blue: 0 0 25px hsl(230 100% 60% / 0.5);
+    --glow-gold: 0 0 20px hsl(45 100% 55% / 0.6);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: radial-gradient(ellipse at top, hsl(270 65% 60% / 0.05), transparent 60%),
+                radial-gradient(ellipse at bottom right, hsl(30 100% 50% / 0.03), transparent 60%),
+                hsl(var(--background));
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+  }
+}
+
+@layer utilities {
+  .text-gradient-cinema {
+    @apply bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent;
+    background-size: 200% 200%;
+    animation: gradient-shift 6s ease infinite;
+  }
+
+  @keyframes gradient-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  .card-cinema {
+    @apply relative overflow-hidden bg-card border border-border rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 hover:scale-[1.02] hover:border-primary/40;
+  }
+
+  .card-cinema::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, hsla(270, 65%, 60%, 0.08), transparent);
+    transition: left 0.6s;
+  }
+
+  .card-cinema:hover::before {
+    left: 100%;
+  }
+
+  .btn-cinema {
+    @apply relative text-white hover:shadow-[var(--glow-blue)] rounded-xl px-8 py-3 font-semibold transition-all duration-300 hover:scale-105 overflow-hidden;
+    background: var(--gradient-button);
+    background-size: 200% 100%;
+    box-shadow: 0 4px 15px rgba(0, 102, 255, 0.3);
+  }
+
+  .btn-cinema:hover {
+    background-position: right center;
+    box-shadow: 0 6px 25px rgba(176, 63, 227, 0.5);
+  }
+
+  .btn-cinema::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.5s, height 0.5s;
+  }
+
+  .btn-cinema:hover::after {
+    width: 400px;
+    height: 400px;
+  }
+
+  .seat {
+    @apply w-12 h-12 rounded-t-3xl transition-all duration-200 cursor-pointer relative;
+    background: linear-gradient(145deg, currentColor 0%, color-mix(in srgb, currentColor 85%, black) 100%);
+    box-shadow: 
+      inset 0 -3px 5px rgba(0,0,0,0.3),
+      inset 0 2px 3px rgba(255,255,255,0.2),
+      0 4px 8px rgba(0,0,0,0.25),
+      0 1px 2px rgba(0,0,0,0.3);
+    border: 2px solid color-mix(in srgb, currentColor 70%, black);
+    transform-style: preserve-3d;
+    transform: perspective(1000px) rotateX(-5deg);
+  }
+  
+  .seat:hover:not(.seat-reserved):not(.seat-sold) {
+    @apply scale-110 -translate-y-1;
+    transform: perspective(1000px) rotateX(-8deg) scale(1.1) translateY(-4px);
+    box-shadow: 
+      inset 0 -3px 5px rgba(0,0,0,0.3),
+      inset 0 2px 3px rgba(255,255,255,0.3),
+      0 8px 16px rgba(0,0,0,0.3),
+      0 0 20px currentColor;
+    animation: seat-bounce 0.3s ease;
+  }
+
+  @keyframes seat-bounce {
+    0%, 100% { transform: perspective(1000px) rotateX(-8deg) scale(1.1) translateY(-4px); }
+    50% { transform: perspective(1000px) rotateX(-10deg) scale(1.12) translateY(-6px); }
+  }
+  
+  /* Base del asiento - simula la parte inferior 3D */
+  .seat::before {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 8%;
+    right: 8%;
+    height: 6px;
+    background: linear-gradient(to bottom, currentColor, color-mix(in srgb, currentColor 60%, black));
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+    transform: translateZ(-5px);
+  }
+  
+  /* Respaldo del asiento */
+  .seat::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 15%;
+    right: 15%;
+    height: 70%;
+    background: linear-gradient(180deg, 
+      color-mix(in srgb, currentColor 95%, white) 0%,
+      currentColor 50%,
+      color-mix(in srgb, currentColor 90%, black) 100%);
+    border-radius: 8px 8px 0 0;
+    opacity: 0.6;
+  }
+  
+  /* Número del asiento */
+  .seat-number {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .seat-available {
+    color: hsl(var(--seat-available));
+  }
+
+  .seat-reserved {
+    color: hsl(var(--seat-reserved));
+    @apply cursor-not-allowed opacity-70;
+  }
+
+  .seat-sold {
+    color: hsl(var(--seat-sold));
+    @apply cursor-not-allowed opacity-70;
+  }
+
+  .seat-vip {
+    color: hsl(var(--seat-vip));
+    border: 2px solid hsl(45 100% 60%);
+    animation: vip-glow 2.5s ease-in-out infinite;
+  }
+
+  @keyframes vip-glow {
+    0%, 100% { 
+      filter: drop-shadow(0 0 6px hsl(var(--seat-vip) / 0.5));
+      box-shadow: 
+        inset 0 -3px 5px rgba(0,0,0,0.3),
+        inset 0 2px 3px rgba(255,255,255,0.2),
+        0 4px 8px rgba(0,0,0,0.25),
+        0 0 15px hsl(var(--seat-vip) / 0.5);
+    }
+    50% { 
+      filter: drop-shadow(0 0 12px hsl(var(--seat-vip) / 0.8));
+      box-shadow: 
+        inset 0 -3px 5px rgba(0,0,0,0.3),
+        inset 0 2px 3px rgba(255,255,255,0.3),
+        0 4px 8px rgba(0,0,0,0.25),
+        0 0 25px hsl(var(--seat-vip) / 0.7);
+    }
+  }
+
+  .seat-selected {
+    color: hsl(var(--seat-selected));
+    transform: perspective(1000px) rotateX(-10deg) scale(1.1) translateY(-4px);
+    animation: selected-pulse 1.5s ease-in-out infinite;
+  }
+
+  @keyframes selected-pulse {
+    0%, 100% { 
+      filter: drop-shadow(0 0 8px hsl(var(--seat-selected) / 0.6));
+      box-shadow: 
+        inset 0 -3px 5px rgba(0,0,0,0.3),
+        inset 0 2px 3px rgba(255,255,255,0.3),
+        0 8px 16px rgba(0,0,0,0.3),
+        0 0 20px hsl(var(--seat-selected) / 0.6);
+    }
+    50% { 
+      filter: drop-shadow(0 0 15px hsl(var(--seat-selected) / 0.9));
+      box-shadow: 
+        inset 0 -3px 5px rgba(0,0,0,0.3),
+        inset 0 2px 3px rgba(255,255,255,0.4),
+        0 8px 16px rgba(0,0,0,0.3),
+        0 0 30px hsl(var(--seat-selected) / 0.8);
+    }
+  }
+
+  /* Scrollbar personalizado */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-thumb-primary\/20::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--primary) / 0.2);
+    border-radius: 9999px;
+  }
+
+  .scrollbar-track-transparent::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+
+  /* Genre chips */
+  .chip {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-full text-sm font-semibold cursor-pointer transition-all duration-200 border-2;
+  }
+
+  .chip:hover {
+    @apply scale-105 shadow-lg;
+  }
+
+  .chip-active {
+    @apply shadow-lg scale-105;
+  }
+
+  /* Fade-in animation */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.4s ease-out;
+  }
+
+  /* Pop animation for seats */
+  @keyframes pop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+  }
+
+  .animate-pop {
+    animation: pop 0.3s ease;
+  }
+
+  /* Cinema screen glow effect */
+  .screen-glow {
+    position: relative;
+  }
+
+  .screen-glow::before {
+    content: '';
+    position: absolute;
+    top: -20px;
+    left: 0;
+    right: 0;
+    height: 40px;
+    background: linear-gradient(to bottom, hsl(230 100% 60% / 0.3), transparent);
+    filter: blur(20px);
+  }
+
+  .screen-glow::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -10%;
+    right: -10%;
+    height: 4px;
+    background: linear-gradient(90deg, 
+      transparent,
+      hsl(230 100% 60% / 0.8) 20%,
+      hsl(270 70% 65% / 0.8) 80%,
+      transparent);
+    box-shadow: 0 0 30px hsl(230 100% 60% / 0.6);
+  }
+}
