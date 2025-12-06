@@ -1,5 +1,5 @@
 // src/pages/SeatMap.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Showtime, Seat, Movie, Room } from "@/types";
 
@@ -14,10 +14,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import Navbar from "@/components/Navbar";
-import { AlertCircle, Star } from "lucide-react";
+import { AlertCircle, Star, RefreshCw, Wifi } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const VIP_ROWS = ["I", "J"];
+const POLLING_INTERVAL = 5000; // 5 segundos
 
 const SeatMap = () => {
   const { id } = useParams();
@@ -28,7 +29,46 @@ const SeatMap = () => {
   const [room, setRoom] = useState<Room | null>(null);
   const [seats, setSeats] = useState<Seat[]>([]);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
 
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cargar asientos (usado para polling)
+  const loadSeats = useCallback(async (showtimeId: number, silent = false) => {
+    try {
+      const seatsRaw = await fetchSeats(showtimeId);
+
+      // Verificar si algún asiento seleccionado ya no está disponible
+      const newUnavailable = selectedSeats.filter((seatId) => {
+        const seat = seatsRaw.find(
+          (s) => `${s.row}${s.number}` === seatId
+        );
+        return seat && seat.status !== "available";
+      });
+
+      if (newUnavailable.length > 0 && !silent) {
+        toast.warning(
+          `Los asientos ${newUnavailable.join(", ")} ya fueron tomados por otro usuario`,
+          { duration: 5000 }
+        );
+        // Remover asientos no disponibles de la selección
+        setSelectedSeats((prev) =>
+          prev.filter((s) => !newUnavailable.includes(s))
+        );
+      }
+
+      setSeats(seatsRaw);
+      setLastUpdate(new Date());
+      setIsOnline(true);
+    } catch (err) {
+      console.error("Error al actualizar asientos:", err);
+      setIsOnline(false);
+    }
+  }, [selectedSeats]);
+
+  // Carga inicial
   useEffect(() => {
     const load = async () => {
       const showtimeId = parseInt(id || "0");
@@ -46,8 +86,7 @@ const SeatMap = () => {
         const roomData = await fetchRoomById(st.roomId);
         setRoom(roomData);
 
-        const seatsRaw = await fetchSeats(showtimeId);
-        setSeats(seatsRaw);
+        await loadSeats(showtimeId, true);
       } catch (err) {
         console.error("Error al cargar SeatMap:", err);
       }
@@ -56,16 +95,36 @@ const SeatMap = () => {
     load();
   }, [id]);
 
+  // Polling para actualización en tiempo real
+  useEffect(() => {
+    const showtimeId = parseInt(id || "0");
+    if (!showtimeId) return;
+
+    // Iniciar polling
+    pollingRef.current = setInterval(() => {
+      loadSeats(showtimeId);
+    }, POLLING_INTERVAL);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, [id, loadSeats]);
+
   const toggleSeat = (row: string, number: number) => {
     const seat = seats.find((s) => s.row === row && s.number === number);
     if (!seat) return;
 
     // No permitir seleccionar reservados o vendidos
-    if (seat.status === "sold" || seat.status === "reserved") return;
+    if (seat.status === "sold" || seat.status === "reserved") {
+      toast.error("Este asiento ya no está disponible");
+      return;
+    }
 
     // En sala VIP solo filas I y J
     if (room && room.type.toLowerCase() === "vip" && !VIP_ROWS.includes(row)) {
-      toast.error("⭐ Solo puedes seleccionar asientos VIP (filas I y J).");
+      toast.error("Solo puedes seleccionar asientos VIP (filas I y J).");
       return;
     }
 
@@ -77,6 +136,15 @@ const SeatMap = () => {
     );
   };
 
+  const handleRefresh = async () => {
+    const showtimeId = parseInt(id || "0");
+    if (showtimeId) {
+      toast.info("Actualizando disponibilidad...");
+      await loadSeats(showtimeId);
+      toast.success("Asientos actualizados");
+    }
+  };
+
   const handleConfirm = async () => {
     if (!showtime || !movie || !room) return;
 
@@ -85,14 +153,16 @@ const SeatMap = () => {
       return;
     }
 
+    setIsSubmitting(true);
+
     try {
-      // 👉 AQUÍ SE MARCAN COMO COMPRADOS: status = "sold"
+      // Intentar reservar - el backend validará disponibilidad
       await reserveSeats(showtime.id, selectedSeats, "sold");
 
-      // Actualizar estado local a "sold" para que se pinten rojos
+      // Actualizar estado local a "sold"
       const updatedSeats = seats.map((s) => {
-        const id = `${s.row}${s.number}`;
-        if (selectedSeats.includes(id)) {
+        const seatId = `${s.row}${s.number}`;
+        if (selectedSeats.includes(seatId)) {
           return { ...s, status: "sold" as const };
         }
         return s;
@@ -100,6 +170,7 @@ const SeatMap = () => {
 
       setSeats(updatedSeats);
 
+      // Agregar al carrito
       const cart = getCart();
 
       selectedSeats.forEach((seatId) => {
@@ -118,11 +189,33 @@ const SeatMap = () => {
       saveCart(cart);
       setSelectedSeats([]);
 
-      toast.success("¡Listo! Tus asientos han sido comprados 🎟️");
+      toast.success("¡Asientos reservados exitosamente!");
       navigate("/products");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error("Error al confirmar tus asientos");
+
+      // Manejar conflicto de asientos
+      if (err.unavailable && err.unavailable.length > 0) {
+        toast.error(
+          `Los asientos ${err.unavailable.join(", ")} ya fueron tomados. Selecciona otros.`,
+          { duration: 5000 }
+        );
+
+        // Remover asientos no disponibles y recargar
+        setSelectedSeats((prev) =>
+          prev.filter((s) => !err.unavailable.includes(s))
+        );
+
+        // Recargar asientos
+        const showtimeId = parseInt(id || "0");
+        if (showtimeId) {
+          await loadSeats(showtimeId, true);
+        }
+      } else {
+        toast.error("Error al confirmar tus asientos. Intenta de nuevo.");
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -147,6 +240,27 @@ const SeatMap = () => {
                   {showtime.price}
                 </p>
 
+                {/* Indicador de conexión */}
+                <div className="flex items-center justify-center gap-2 text-sm">
+                  <Wifi className={`w-4 h-4 ${isOnline ? "text-green-500" : "text-red-500"}`} />
+                  <span className={isOnline ? "text-green-500" : "text-red-500"}>
+                    {isOnline ? "En tiempo real" : "Sin conexión"}
+                  </span>
+                  {lastUpdate && (
+                    <span className="text-muted-foreground">
+                      • Actualizado: {lastUpdate.toLocaleTimeString()}
+                    </span>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRefresh}
+                    className="ml-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </Button>
+                </div>
+
                 {/* Distinción de sala */}
                 {room.type.toLowerCase() === "vip" ? (
                   <div className="flex flex-col items-center gap-2">
@@ -158,7 +272,7 @@ const SeatMap = () => {
                       <AlertCircle className="h-4 w-4 text-yellow-500" />
                       <AlertDescription className="text-foreground text-left text-sm md:text-base">
                         <p className="font-semibold mb-1">
-                          ⭐ Bienvenido a la experiencia VIP
+                          Bienvenido a la experiencia VIP
                         </p>
                         <p className="mb-2">
                           Las filas <strong>I</strong> y <strong>J</strong> son
@@ -288,7 +402,7 @@ const SeatMap = () => {
                               <div
                                 key={number}
                                 onClick={() => toggleSeat(row, number)}
-                                className={`${seatClass} relative w-8 h-8 md:w-10 md:h-10`}
+                                className={`${seatClass} relative w-8 h-8 md:w-10 md:h-10 transition-all duration-200`}
                               >
                                 <span className="seat-number text-xs md:text-sm">
                                   {number}
@@ -317,7 +431,7 @@ const SeatMap = () => {
                             key={s}
                             className="text-base md:text-lg px-4 py-1 bg-primary text-primary-foreground"
                           >
-                            🎟️ {s}
+                            {s}
                           </Badge>
                         ))
                       ) : (
@@ -343,11 +457,18 @@ const SeatMap = () => {
                       </p>
                     </div>
                     <Button
-                      disabled={selectedSeats.length === 0}
+                      disabled={selectedSeats.length === 0 || isSubmitting}
                       onClick={handleConfirm}
                       className="btn-cinema text-lg px-8 py-4"
                     >
-                      Continuar →
+                      {isSubmitting ? (
+                        <>
+                          <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                          Procesando...
+                        </>
+                      ) : (
+                        "Continuar"
+                      )}
                     </Button>
                   </div>
                 </div>

@@ -14,6 +14,7 @@ import Tickets from "./pages/customer/Tickets";
 import Dashboard from "./pages/admin/Dashboard";
 import MoviesAdmin from "./pages/admin/Movies";
 import ProductsAdmin from "./pages/admin/Products";
+import ShowtimesAdmin from "./pages/admin/ShowtimesAdmin";
 import Reports from "./pages/admin/Reports";
 import NotFound from "./pages/NotFound";
 
@@ -73,6 +74,11 @@ const App = () => (
             <Route path="/admin/products" element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <ProductsAdmin />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/showtimes" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <ShowtimesAdmin />
               </ProtectedRoute>
             } />
             <Route path="/admin/reports" element={

@@ -9,7 +9,29 @@ type SeatApiRow = {
   row_label: string;
   seat_number: number | string;
   status: string;
+  updated_at?: string;
 };
+
+type SeatsResponse = {
+  seats: SeatApiRow[];
+  timestamp: string;
+};
+
+export interface SeatCheckResult {
+  available: boolean;
+  unavailable: string[];
+}
+
+export interface ReserveResult {
+  ok: boolean;
+  updated: number;
+  timestamp: string;
+}
+
+export interface ReserveError {
+  error: string;
+  unavailable: string[];
+}
 
 export async function fetchSeats(showtimeId: number): Promise<Seat[]> {
   const res = await fetch(`${API_BASE}/seats.php?showtime_id=${showtimeId}`);
@@ -19,9 +41,12 @@ export async function fetchSeats(showtimeId: number): Promise<Seat[]> {
     throw new Error("Error al obtener asientos");
   }
 
-  const data: SeatApiRow[] = await res.json();
+  const data = await res.json();
 
-  return data.map((s) => ({
+  // Soportar nuevo formato con timestamp o formato anterior
+  const seatsArray: SeatApiRow[] = data.seats || data;
+
+  return seatsArray.map((s) => ({
     row: s.row_label,
     number: Number(s.seat_number),
     status: s.status as Seat["status"],
@@ -29,19 +54,44 @@ export async function fetchSeats(showtimeId: number): Promise<Seat[]> {
 }
 
 /**
+ * Verifica si los asientos seleccionados siguen disponibles
+ */
+export async function checkSeatsAvailability(
+  showtimeId: number,
+  seatIds: string[]
+): Promise<SeatCheckResult> {
+  const res = await fetch(`${API_BASE}/seats.php?action=check`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      showtime_id: showtimeId,
+      seats: seatIds,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Error al verificar disponibilidad");
+  }
+
+  return res.json();
+}
+
+/**
  * Reserva o marca como vendidos asientos.
  * status:
  *  - "reserved"  -> naranja (apartado, no pagado)
  *  - "sold"      -> rojo (comprado)
+ *
+ * Lanza error con unavailable[] si algún asiento ya no está disponible
  */
 export async function reserveSeats(
   showtimeId: number,
   seatIds: string[], // ["I5","I6", ...]
   status: "reserved" | "sold" = "reserved"
-): Promise<void> {
+): Promise<ReserveResult> {
   const seats = seatIds.map((id) => {
     const row = id[0];
-    const num = Number(id.slice(1)); // A10 -> row A, number 10
+    const num = Number(id.slice(1));
     return { row, number: num };
   });
 
@@ -55,9 +105,18 @@ export async function reserveSeats(
     }),
   });
 
-  if (!res.ok) {
-    const txt = await res.text();
-    console.error("Error HTTP reserveSeats:", res.status, txt);
-    throw new Error("Error al reservar asientos");
+  const data = await res.json();
+
+  // HTTP 409 = Conflicto (asientos ya tomados)
+  if (res.status === 409) {
+    const error = new Error(data.error || "Asientos no disponibles") as Error & { unavailable?: string[] };
+    error.unavailable = data.unavailable || [];
+    throw error;
   }
+
+  if (!res.ok) {
+    throw new Error(data.error || "Error al reservar asientos");
+  }
+
+  return data;
 }
