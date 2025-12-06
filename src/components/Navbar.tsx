@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Film, User, LogOut, ShoppingCart, Receipt } from "lucide-react";
+import { Film, User, LogOut, ShoppingCart, Receipt, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -37,6 +37,14 @@ const Navbar = () => {
         </Link>
 
         <div className="flex items-center space-x-4">
+          {/* Botón Panel Admin - solo visible para administradores */}
+          {user && user.role === "admin" && (
+            <Button variant="outline" size="sm" onClick={() => navigate("/admin/dashboard")} className="gap-2">
+              <LayoutDashboard className="w-4 h-4" />
+              <span className="hidden sm:inline">Panel Admin</span>
+            </Button>
+          )}
+
           {user && user.role === "customer" && (
             <>
               <Button variant="outline" size="icon" onClick={() => navigate("/customer/cart")}>
@@ -66,6 +74,15 @@ const Navbar = () => {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
+                {user.role === "admin" && (
+                  <>
+                    <DropdownMenuItem onClick={() => navigate("/admin/dashboard")}>
+                      <LayoutDashboard className="w-4 h-4 mr-2" />
+                      Panel de Administración
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 {user.role === "customer" && (
                   <>
                     <DropdownMenuItem onClick={() => navigate("/customer/tickets")}>
